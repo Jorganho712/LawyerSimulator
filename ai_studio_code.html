@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lawyer Simulator - AI Dynamic Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root { --neon: #39FF14; --bg: #050505; --red: #ff0000; }
+        * { box-sizing: border-box; }
+        body { 
+            background-color: var(--bg); color: var(--neon); 
+            font-family: 'Courier New', Courier, monospace; 
+            margin: 0; overflow: hidden; text-transform: uppercase;
+        }
+        h1, h2, #crime-header { letter-spacing: 3px; text-shadow: 0 0 10px var(--neon); }
+        #game-container { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        #crime-header { 
+            position: absolute; top: 0; width: 100%; background: var(--red); color: #fff; 
+            text-align: center; padding: 15px; font-weight: bold; z-index: 1000; display: none;
+            border-bottom: 4px solid #fff; box-shadow: 0 5px 20px rgba(255,0,0,0.8);
+        }
+        #hud { position: absolute; top: 80px; left: 20px; font-size: 0.9rem; border: 1px solid var(--neon); padding: 10px; background: rgba(0,0,0,0.8); z-index: 100; }
+        #three-container { width: 200px; height: 200px; border: 2px solid var(--neon); margin-bottom: 20px; background: #000; border-radius: 50%; overflow: hidden; }
+        .screen { display: none; flex-direction: column; align-items: center; width: 90%; max-width: 800px; text-align: center; }
+        .active { display: flex; }
+        button { background: transparent; color: var(--neon); border: 2px solid var(--neon); padding: 12px 25px; margin: 8px; cursor: pointer; font-family: inherit; font-weight: bold; transition: 0.3s; }
+        button:hover { background: var(--neon); color: #000; box-shadow: 0 0 20px var(--neon); }
+        button:disabled { border-color: #444; color: #444; cursor: wait; }
+        #confidence-bar-bg { width: 100%; height: 20px; border: 1px solid var(--neon); margin: 15px 0; background: #111; }
+        #confidence-bar-fill { width: 50%; height: 100%; background: var(--neon); transition: 0.5s; }
+        #question-box { font-size: 1rem; min-height: 140px; padding: 20px; border: 1px solid #333; margin-bottom: 20px; background: #0a0a0a; width: 100%; color: #fff; text-align: left; line-height: 1.4; }
+        textarea { 
+            background: #000; border: 1px solid var(--neon); color: var(--neon); 
+            padding: 15px; font-family: inherit; width: 100%; height: 80px; 
+            resize: none; outline: none; font-size: 1rem; margin-bottom: 10px;
+        }
+        #prison-screen { border: 4px solid var(--red); padding: 40px; background: #1a0000; box-shadow: 0 0 40px var(--red); }
+        #mg-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.98); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<div id="crime-header">JULGAMENTO: <span id="crime-text">---</span></div>
+
+<div id="game-container">
+    <div id="hud">
+        SALDO: R$ <span id="money-val">0</span><br>
+        SKIN: <span id="skin-val">PADRÃO</span><br>
+        JUIZ: <span id="ai-status" style="color: #0f0;">ONLINE</span>
+    </div>
+
+    <div id="three-container"></div>
+
+    <div id="menu-screen" class="screen active">
+        <h1>LAWYER SIMULATOR</h1>
+        <button onclick="startRaffle()">INICIAR CARREIRA</button>
+        <button onclick="showScreen('shop-screen')">LOJA</button>
+        <button onclick="showScreen('settings-screen')">TERMINAL</button>
+    </div>
+
+    <div id="raffle-screen" class="screen">
+        <h2>IDENTIFICANDO CASO...</h2>
+        <h1 id="raffle-name" style="color: #fff; font-size: 2.5rem;">---</h1>
+    </div>
+
+    <div id="court-screen" class="screen">
+        <h2 id="def-title">REU: ?</h2>
+        <div id="confidence-bar-bg"><div id="confidence-bar-fill"></div></div>
+        <div id="question-box">AGUARDANDO O JUIZ...</div>
+        <textarea id="user-defense" placeholder="DIGITE SUA RESPOSTA..."></textarea>
+        <button id="submit-btn" onclick="submitDefense()">ENVIAR DEPOIMENTO</button>
+    </div>
+
+    <div id="prison-screen" class="screen">
+        <h1 style="color: var(--red);">SENTENÇA: CULPADO</h1>
+        <button onclick="initMinigame()">TENTAR FUGA (CLICKER)</button>
+        <button onclick="location.reload()" style="margin-top: 20px;">MENU</button>
+    </div>
+
+    <div id="shop-screen" class="screen">
+        <h2>LOJA</h2>
+        <div id="shop-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;"></div>
+        <button onclick="showScreen('menu-screen')">VOLTAR</button>
+    </div>
+
+    <div id="settings-screen" class="screen">
+        <h2>TERMINAL</h2>
+        <input type="text" id="terminal-input" style="background:black; color:var(--neon); border:1px solid var(--neon); padding:10px;" placeholder="CÓDIGO">
+        <button onclick="executeCode()">OK</button>
+        <button onclick="showScreen('menu-screen')">VOLTAR</button>
+    </div>
+</div>
+
+<div id="mg-overlay">
+    <h1>FUJA DA PRISÃO!</h1>
+    <p>CLIQUE RÁPIDO PARA ESCAPAR</p>
+    <div id="mg-timer" style="font-size: 3rem;">10S</div>
+    <canvas id="mg-canvas" width="300" height="300" style="border: 1px solid var(--neon);"></canvas>
+</div>
+
+<script>
+    const API_KEY = "AIzaSyAGXRrA6FoYASqlBHb9Zwn-l7Myr-yKyU8"; // <--- COLOQUE SUA CHAVE AQUI
+    const youtubers = ["MR BEAST", "FELIPE NETO", "SPEED", "CELLBIT", "ALANZOKA", "CASIMIRO"];
+    const crimes = ["ESTELIONATO COM RIFAS", "EVASÃO DE IMPOSTOS", "CONTEÚDO IMPRÓPRIO", "FRAUDE FINANCEIRA", "DIVULGAÇÃO DE CASSINO"];
+
+    let money = parseInt(localStorage.getItem('law_money')) || 0;
+    let confidence = 50, currentDefendant = "", currentCrime = "", activeSkin = "PADRÃO";
+    let chatContext = []; 
+
+    // LÓGICA DA IA COM TRÉPLICA DINÂMICA
+    async function submitDefense() {
+        const defense = document.getElementById('user-defense').value;
+        if (!defense || defense.length < 5) return;
+
+        const btn = document.getElementById('submit-btn');
+        const qBox = document.getElementById('question-box');
+        btn.disabled = true;
+        qBox.innerHTML = "<span style='color: yellow;'>O JUIZ ESTÁ ESCREVENDO...</span>";
+
+        chatContext.push(`Advogado: ${defense}`);
+
+        const prompt = `Você é um Juiz implacável. RÉU: ${currentDefendant}. CRIME: ${currentCrime}. 
+        HISTÓRICO: ${chatContext.slice(-4).join(" | ")}.
+        INSTRUÇÃO: Analise o argumento do advogado. Se for bom, aumente a confiança. Se for ruim, diminua.
+        Crie uma PERGUNTA DE TRÉPLICA baseada na resposta dele para encurralá-lo.
+        Responda APENAS JSON: {"mudanca": int, "reacao": "reacao curta", "pergunta": "pergunta baseada no que ele disse"}`;
+
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const data = await response.json();
+            const res = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0]);
+            
+            chatContext.push(`Juiz: ${res.pergunta}`);
+            confidence = Math.max(0, Math.min(100, confidence + res.mudanca));
+
+            document.getElementById('confidence-bar-fill').style.width = confidence + "%";
+            qBox.innerHTML = `<div style="color: #0f0;">[JUIZ]: ${res.reacao.toUpperCase()}</div><br><strong>PERGUNTA:</strong> ${res.pergunta.toUpperCase()}`;
+            document.getElementById('user-defense').value = "";
+            
+            if (confidence >= 100) { alert("ABSOLVIDO!"); money += 2000; updateHUD(); location.reload(); }
+            else if (confidence <= 0) { showScreen('prison-screen'); }
+
+        } catch (e) { qBox.innerText = "ERRO NA CONEXÃO COM O TRIBUNAL."; }
+        btn.disabled = false;
+        updateHUD();
+    }
+
+    // ENGINE DE SORTEIO
+    function startRaffle() {
+        showScreen('raffle-screen');
+        chatContext = [];
+        let c = 0;
+        const intv = setInterval(() => {
+            document.getElementById('raffle-name').innerText = youtubers[Math.floor(Math.random()*youtubers.length)];
+            c++; 
+            if(c > 12) {
+                clearInterval(intv);
+                currentDefendant = document.getElementById('raffle-name').innerText;
+                currentCrime = crimes[Math.floor(Math.random()*crimes.length)];
+                setTimeout(startCourt, 800);
+            }
+        }, 100);
+    }
+
+    function startCourt() {
+        document.getElementById('def-title').innerText = "REU: " + currentDefendant;
+        document.getElementById('crime-text').innerText = currentCrime;
+        document.getElementById('crime-header').style.display = "block";
+        showScreen('court-screen');
+        const initial = `O RÉU ${currentDefendant} É ACUSADO DE ${currentCrime}. COMO A DEFESA EXPLICA ISSO?`;
+        document.getElementById('question-box').innerText = `JUIZ: ${initial}`;
+        chatContext.push(`Juiz: ${initial}`);
+    }
+
+    // THREE.JS (PERSONAGEM)
+    let scene, camera, renderer, model;
+    function init3D() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(200, 200);
+        document.getElementById('three-container').appendChild(renderer.domElement);
+        loadModel();
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 1, 2);
+        scene.add(light, new THREE.AmbientLight(0x404040));
+        camera.position.z = 3;
+        function animate() { requestAnimationFrame(animate); if(model) model.rotation.y += 0.03; renderer.render(scene, camera); }
+        animate();
+    }
+
+    function loadModel() {
+        if(model) scene.remove(model);
+        model = new THREE.Group();
+        const color = activeSkin === "GOLD" ? 0xFFD700 : 0x39FF14;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), new THREE.MeshStandardMaterial({color: color}));
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), new THREE.MeshStandardMaterial({color: 0xffcc99}));
+        head.position.y = 0.9;
+        model.add(body, head);
+        scene.add(model);
+    }
+
+    // LOJA E HUD
+    function updateHUD() {
+        document.getElementById('money-val').innerText = money;
+        document.getElementById('skin-val').innerText = activeSkin;
+        localStorage.setItem('law_money', money);
+    }
+
+    function renderShop() {
+        const grid = document.getElementById('shop-grid'); grid.innerHTML = "";
+        ["PADRÃO", "GOLD", "CYBER"].forEach((s, i) => {
+            const p = i * 2000;
+            grid.innerHTML += `<div style="border:1px solid var(--neon); padding:5px;">${s}<br>R$${p}<br><button onclick="buySkin('${s}',${p})" ${money<p?'disabled':''}>BUY</button></div>`;
+        });
+    }
+
+    function buySkin(n, p) { if(money>=p){ money-=p; activeSkin=n; loadModel(); updateHUD(); showScreen('menu-screen'); } }
+
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id !== 'court-screen') document.getElementById('crime-header').style.display = "none";
+        if(id === 'shop-screen') renderShop();
+    }
+
+    function executeCode() {
+        const c = document.getElementById('terminal-input').value;
+        if(c === 'rich') { money += 99999; updateHUD(); }
+        document.getElementById('terminal-input').value = "";
+    }
+
+    // MINIGAME DE FUGA
+    function initMinigame() {
+        document.getElementById('mg-overlay').style.display = 'flex';
+        let clicks = 0, time = 10;
+        const intv = setInterval(() => {
+            time -= 1; document.getElementById('mg-timer').innerText = time + "S";
+            if(time <= 0) {
+                clearInterval(intv);
+                document.getElementById('mg-overlay').style.display = 'none';
+                if(clicks >= 40) { alert("VOCÊ FUGIU!"); location.reload(); }
+                else { alert("PRESO NOVAMENTE!"); }
+            }
+        }, 1000);
+        document.getElementById('mg-canvas').onclick = () => { clicks++; };
+    }
+
+    window.onload = () => { init3D(); updateHUD(); };
+</script>
+</body>
+</html>
