@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lawyer Simulator </title>
+    <title>Lawyer Simulator - Vercel</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --neon: #39FF14; --bg: #050505; --red: #ff0000; }
@@ -20,7 +20,7 @@
             border-bottom: 4px solid #fff; box-shadow: 0 5px 20px rgba(255,0,0,0.8);
         }
         #hud { position: absolute; top: 80px; left: 20px; font-size: 0.9rem; border: 1px solid var(--neon); padding: 10px; background: rgba(0,0,0,0.8); z-index: 100; }
-        #three-container { width: 200px; height: 200px; border: 2px solid var(--neon); margin-bottom: 20px; background: #000; border-radius: 50%; overflow: hidden; }
+        #three-container { width: 180px; height: 180px; border: 2px solid var(--neon); margin-bottom: 20px; background: #000; border-radius: 50%; overflow: hidden; }
         .screen { display: none; flex-direction: column; align-items: center; width: 90%; max-width: 800px; text-align: center; }
         .active { display: flex; }
         button { background: transparent; color: var(--neon); border: 2px solid var(--neon); padding: 12px 25px; margin: 8px; cursor: pointer; font-family: inherit; font-weight: bold; transition: 0.3s; }
@@ -43,45 +43,43 @@
 <div id="game-container">
     <div id="hud">
         SALDO: R$ <span id="money-val">0</span><br>
-        JUIZ: <span id="ai-status" style="color: #0f0;">VIA VERCEL</span>
+        SISTEMA: <span id="ai-status" style="color: #0f0;">VERCEL PROXY</span>
     </div>
 
     <div id="three-container"></div>
 
     <div id="menu-screen" class="screen active">
         <h1>LAWYER SIMULATOR</h1>
-        <button onclick="startRaffle()">INICIAR CARREIRA</button>
-        <button onclick="location.reload()">REINICIAR</button>
+        <button onclick="startRaffle()">INICIAR CASO</button>
     </div>
 
     <div id="raffle-screen" class="screen">
-        <h2>IDENTIFICANDO CASO...</h2>
+        <h2>SORTEANDO RÉU...</h2>
         <h1 id="raffle-name" style="color: #fff; font-size: 2.5rem;">---</h1>
     </div>
 
     <div id="court-screen" class="screen">
         <h2 id="def-title">REU: ?</h2>
         <div id="confidence-bar-bg"><div id="confidence-bar-fill"></div></div>
-        <div id="question-box">AGUARDANDO O JUIZ...</div>
-        <textarea id="user-defense" placeholder="DIGITE SUA DEFESA..."></textarea>
+        <div id="question-box">CARREGANDO...</div>
+        <textarea id="user-defense" placeholder="SUA DEFESA..."></textarea>
         <button id="submit-btn" onclick="submitDefense()">ENVIAR DEPOIMENTO</button>
     </div>
 
     <div id="prison-screen" class="screen">
-        <h1 style="color: var(--red);">SENTENÇA: CULPADO</h1>
-        <button onclick="location.reload()">TENTAR NOVAMENTE</button>
+        <h1 style="color: var(--red);">CULPADO - PRISÃO PERPÉTUA</h1>
+        <button onclick="location.reload()">NOVO JULGAMENTO</button>
     </div>
 </div>
 
 <script>
     const youtubers = ["MR BEAST", "FELIPE NETO", "SPEED", "CELLBIT", "ALANZOKA", "CASIMIRO"];
-    const crimes = ["ESTELIONATO COM RIFAS", "EVASÃO DE IMPOSTOS", "CONTEÚDO IMPRÓPRIO", "FRAUDE FINANCEIRA", "DIVULGAÇÃO DE CASSINO"];
+    const crimes = ["FRAUDE EM RIFAS", "EVASÃO FISCAL", "PLÁGIO DE CONTEÚDO", "GOLPE DE CRIPTO", "PROPAGANDA ENGANOSA"];
 
     let money = parseInt(localStorage.getItem('law_money')) || 0;
     let confidence = 50, currentDefendant = "", currentCrime = "";
     let chatContext = []; 
 
-    // --- FUNÇÃO CORRIGIDA PARA FALAR COM A VERCEL ---
     async function submitDefense() {
         const defense = document.getElementById('user-defense').value;
         if (!defense || defense.length < 3) return;
@@ -89,10 +87,9 @@
         const btn = document.getElementById('submit-btn');
         const qBox = document.getElementById('question-box');
         btn.disabled = true;
-        qBox.innerHTML = "<span style='color: yellow;'>O JUIZ ESTÁ PROCESSANDO...</span>";
+        qBox.innerHTML = "<span style='color: yellow;'>O JUIZ ESTÁ ANALISANDO...</span>";
 
         try {
-            // Chamada para a sua API Proxy na Vercel
             const response = await fetch('/api/judge', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -106,7 +103,12 @@
 
             const data = await response.json();
             
-            // Pega o texto da IA (JSON) e limpa
+            // BLINDAGEM CONTRA O ERRO 'UNDEFINED'
+            if (!data || !data.candidates || !data.candidates[0]) {
+                console.error("Erro na resposta da API:", data);
+                throw new Error("Resposta inválida");
+            }
+
             let aiRawResponse = data.candidates[0].content.parts[0].text;
             const jsonMatch = aiRawResponse.match(/\{[\s\S]*\}/);
             const res = JSON.parse(jsonMatch[0]);
@@ -120,25 +122,25 @@
             qBox.innerHTML = `<div style="color: #0f0;">[JUIZ]: ${res.reacao.toUpperCase()}</div><br><strong>PERGUNTA:</strong> ${res.pergunta.toUpperCase()}`;
             document.getElementById('user-defense').value = "";
             
-            if (confidence >= 100) { alert("ABSOLVIDO!"); money += 2000; updateHUD(); location.reload(); }
+            if (confidence >= 100) { alert("ABSOLVIDO! VOCÊ GANHOU R$ 2000"); money += 2000; updateHUD(); location.reload(); }
             else if (confidence <= 0) { showScreen('prison-screen'); }
 
         } catch (e) { 
-            console.error("ERRO NO TRIBUNAL:", e);
-            qBox.innerHTML = `<span style="color:red;">ERRO NA CONEXÃO COM O TRIBUNAL VERCEL.</span><br><small>Verifique se o arquivo api/judge.js existe e se a chave GEMINI_KEY está na Vercel.</small>`; 
+            console.error(e);
+            qBox.innerHTML = `<span style="color:red;">O JUIZ ESTÁ EM SILÊNCIO (VERIFIQUE A GEMINI_KEY NA VERCEL).</span>`; 
         }
         btn.disabled = false;
         updateHUD();
     }
 
-    // --- LOGICA DO JOGO ---
+    // LOGICA DE SORTEIO E TELAS
     function startRaffle() {
         showScreen('raffle-screen');
         let c = 0;
         const intv = setInterval(() => {
             document.getElementById('raffle-name').innerText = youtubers[Math.floor(Math.random()*youtubers.length)];
             c++; 
-            if(c > 15) {
+            if(c > 12) {
                 clearInterval(intv);
                 currentDefendant = document.getElementById('raffle-name').innerText;
                 currentCrime = crimes[Math.floor(Math.random()*crimes.length)];
@@ -152,7 +154,7 @@
         document.getElementById('crime-text').innerText = currentCrime;
         document.getElementById('crime-header').style.display = "block";
         showScreen('court-screen');
-        const initial = `O RÉU ${currentDefendant} É ACUSADO DE ${currentCrime}. O QUE VOCÊ TEM A DIZER?`;
+        const initial = `O RÉU ${currentDefendant} É ACUSADO DE ${currentCrime}. COMO SE DECLARA A DEFESA?`;
         document.getElementById('question-box').innerText = `JUIZ: ${initial}`;
         chatContext.push(`Juiz: ${initial}`);
     }
@@ -168,23 +170,23 @@
         if(id !== 'court-screen') document.getElementById('crime-header').style.display = "none";
     }
 
-    // --- VISUAL 3D BÁSICO ---
+    // VISUAL 3D (CUBO NEON)
     let scene, camera, renderer, cube;
     function init3D() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(200, 200);
+        renderer.setSize(180, 180);
         document.getElementById('three-container').appendChild(renderer.domElement);
         const geo = new THREE.BoxGeometry();
-        const mat = new THREE.MeshStandardMaterial({ color: 0x39FF14 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0x39FF14, wireframe: true });
         cube = new THREE.Mesh(geo, mat);
         scene.add(cube);
         const light = new THREE.PointLight(0xffffff, 1, 100);
         light.position.set(10, 10, 10);
         scene.add(light, new THREE.AmbientLight(0x404040));
         camera.position.z = 2;
-        function animate() { requestAnimationFrame(animate); cube.rotation.y += 0.05; renderer.render(scene, camera); }
+        function animate() { requestAnimationFrame(animate); cube.rotation.x += 0.01; cube.rotation.y += 0.02; renderer.render(scene, camera); }
         animate();
     }
 
