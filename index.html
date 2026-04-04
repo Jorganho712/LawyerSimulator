@@ -94,13 +94,15 @@
 
 <div id="mg-overlay">
     <h1>FUJA DA PRISÃO!</h1>
-    <p>CLIQUE RÁPIDO PARA ESCAPAR</p>
+    <p>CLIQUE NO CANVAS PARA ESCAPAR</p>
     <div id="mg-timer" style="font-size: 3rem;">10S</div>
-    <canvas id="mg-canvas" width="300" height="300" style="border: 1px solid var(--neon);"></canvas>
+    <canvas id="mg-canvas" width="300" height="300" style="border: 1px solid var(--neon); cursor: pointer;"></canvas>
 </div>
 
 <script>
-    const API_KEY = "AIzaSyAGXRrA6FoYASqlBHb9Zwn-l7Myr-yKyU8"; // <--- COLOQUE SUA CHAVE AQUI
+    // --- CONFIGURAÇÃO ---
+    const API_KEY = "SUA_CHAVE_AQUI"; // <--- COLOQUE SUA CHAVE AQUI
+    
     const youtubers = ["MR BEAST", "FELIPE NETO", "SPEED", "CELLBIT", "ALANZOKA", "CASIMIRO"];
     const crimes = ["ESTELIONATO COM RIFAS", "EVASÃO DE IMPOSTOS", "CONTEÚDO IMPRÓPRIO", "FRAUDE FINANCEIRA", "DIVULGAÇÃO DE CASSINO"];
 
@@ -108,7 +110,7 @@
     let confidence = 50, currentDefendant = "", currentCrime = "", activeSkin = "PADRÃO";
     let chatContext = []; 
 
-    // LÓGICA DA IA COM TRÉPLICA DINÂMICA
+    // --- LÓGICA DA IA (VERSÃO BLINDADA) ---
     async function submitDefense() {
         const defense = document.getElementById('user-defense').value;
         if (!defense || defense.length < 5) return;
@@ -116,25 +118,41 @@
         const btn = document.getElementById('submit-btn');
         const qBox = document.getElementById('question-box');
         btn.disabled = true;
-        qBox.innerHTML = "<span style='color: yellow;'>O JUIZ ESTÁ ESCREVENDO...</span>";
+        qBox.innerHTML = "<span style='color: yellow;'>O JUIZ ESTÁ ANALISANDO...</span>";
 
         chatContext.push(`Advogado: ${defense}`);
 
         const prompt = `Você é um Juiz implacável. RÉU: ${currentDefendant}. CRIME: ${currentCrime}. 
         HISTÓRICO: ${chatContext.slice(-4).join(" | ")}.
-        INSTRUÇÃO: Analise o argumento do advogado. Se for bom, aumente a confiança. Se for ruim, diminua.
-        Crie uma PERGUNTA DE TRÉPLICA baseada na resposta dele para encurralá-lo.
-        Responda APENAS JSON: {"mudanca": int, "reacao": "reacao curta", "pergunta": "pergunta baseada no que ele disse"}`;
+        Analise o argumento. Responda APENAS o JSON puro:
+        {"mudanca": int, "reacao": "reacao curta", "pergunta": "pergunta baseada no que ele disse"}`;
 
         try {
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                body: JSON.stringify({ 
+                    contents: [{ parts: [{ text: prompt }] }],
+                    safetySettings: [
+                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                    ]
+                })
             });
 
             const data = await response.json();
-            const res = JSON.parse(data.candidates[0].content.parts[0].text.match(/\{.*\}/s)[0]);
+            
+            if (!data.candidates || !data.candidates[0].content) {
+                throw new Error("Resposta bloqueada pela IA");
+            }
+
+            let aiRawResponse = data.candidates[0].content.parts[0].text;
+            const jsonMatch = aiRawResponse.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error("JSON inválido");
+            
+            const res = JSON.parse(jsonMatch[0]);
             
             chatContext.push(`Juiz: ${res.pergunta}`);
             confidence = Math.max(0, Math.min(100, confidence + res.mudanca));
@@ -146,12 +164,15 @@
             if (confidence >= 100) { alert("ABSOLVIDO!"); money += 2000; updateHUD(); location.reload(); }
             else if (confidence <= 0) { showScreen('prison-screen'); }
 
-        } catch (e) { qBox.innerText = "ERRO NA CONEXÃO COM O TRIBUNAL."; }
+        } catch (e) { 
+            console.error(e);
+            qBox.innerHTML = `<span style="color:red;">ERRO NA CONEXÃO COM O TRIBUNAL.</span><br><small>Verifique sua chave ou se o prompt foi bloqueado.</small>`; 
+        }
         btn.disabled = false;
         updateHUD();
     }
 
-    // ENGINE DE SORTEIO
+    // --- ENGINE DO JOGO ---
     function startRaffle() {
         showScreen('raffle-screen');
         chatContext = [];
@@ -178,7 +199,7 @@
         chatContext.push(`Juiz: ${initial}`);
     }
 
-    // THREE.JS (PERSONAGEM)
+    // --- VISUAL 3D ---
     let scene, camera, renderer, model;
     function init3D() {
         scene = new THREE.Scene();
@@ -206,7 +227,7 @@
         scene.add(model);
     }
 
-    // LOJA E HUD
+    // --- HUD E LOJA ---
     function updateHUD() {
         document.getElementById('money-val').innerText = money;
         document.getElementById('skin-val').innerText = activeSkin;
@@ -217,7 +238,7 @@
         const grid = document.getElementById('shop-grid'); grid.innerHTML = "";
         ["PADRÃO", "GOLD", "CYBER"].forEach((s, i) => {
             const p = i * 2000;
-            grid.innerHTML += `<div style="border:1px solid var(--neon); padding:5px;">${s}<br>R$${p}<br><button onclick="buySkin('${s}',${p})" ${money<p?'disabled':''}>BUY</button></div>`;
+            grid.innerHTML += `<div style="border:1px solid var(--neon); padding:5px;">${s}<br>R$${p}<br><button onclick="buySkin('${s}',${p})" ${money<p?'disabled':''}>COMPRAR</button></div>`;
         });
     }
 
@@ -236,7 +257,7 @@
         document.getElementById('terminal-input').value = "";
     }
 
-    // MINIGAME DE FUGA
+    // --- MINIGAME ---
     function initMinigame() {
         document.getElementById('mg-overlay').style.display = 'flex';
         let clicks = 0, time = 10;
