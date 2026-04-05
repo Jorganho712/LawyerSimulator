@@ -447,7 +447,8 @@
 <script>
   // ─── CONFIGURAÇÃO ───────────────────────────────────────────
   const GEMINI_KEY = "AIzaSyB7-PDggcu_29L3iQPdcCxBg0WYaw3zG_U";
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+// Mudamos de v1beta para v1 e ajustamos a estrutura
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
 
   // ─── DADOS DO JOGO ──────────────────────────────────────────
   const YOUTUBERS = [
