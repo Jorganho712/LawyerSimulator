@@ -518,7 +518,7 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
       div.innerHTML = `<div class="msg-bubble">[SISTEMA] ${escHtml(text)}</div>`;
     } else {
       const who = role === "lawyer"
-        ? "&#x1F4BB; ADVOGADO (VOCÊ)"
+        ? "&#x1F4BB; (VOCÊ)"
         : "&#x2694; JUIZ IA";
       div.className = `msg ${role}`;
       div.innerHTML = `
@@ -653,10 +653,33 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
 
   // ─── CHAMADA GEMINI ──────────────────────────────────────────
   async function callGemini(defense) {
-    const historyText = state.history.map(m =>
-      `${m.role === "lawyer" ? "ADVOGADO" : "JUIZ"}: ${m.content}`
-    ).join("\n");
+  const prompt = `Você é o Juiz Rodrigues, um juiz severo e irônico. Faça sua defesa baseada na wikipedia do Réu (Ex: Se o Elon Musk falar que é pobre, você sabe que é mentira e assim com todos os outros réus)
+Réu: ${state.defendant}, Crime: ${state.crime}.
+Confiança atual: ${state.confidence}%.
+O advogado disse: "${defense}"
 
+Responda APENAS com um objeto JSON puro:
+{"reaction":"sua reação curta","nextQuestion":"sua pergunta","confidenceChange": número}`;
+
+  const res = await fetch(GEMINI_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
+
+  const data = await res.json();
+  let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  
+  return JSON.parse(raw);
+}
     const prompt = `Você é o Juiz Rodrigues, um juiz severo, dramático e irônico de um tribunal brasileiro.
 O réu é ${state.defendant}, acusado de ${state.crime}.
 O nível atual de confiança do juiz na defesa é ${state.confidence}%.
