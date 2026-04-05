@@ -446,10 +446,9 @@
 
 <script>
   // ─── CONFIGURAÇÃO ───────────────────────────────────────────
-  // Substitua pela sua chave da API do Google Gemini:
   const GEMINI_KEY = "AIzaSyB7-PDggcu_29L3iQPdcCxBg0WYaw3zG_U";
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
   // ─── DADOS DO JOGO ──────────────────────────────────────────
   const YOUTUBERS = [
     "Felipe Neto", "Whindersson Nunes", "Virgínia Fonseca", "Casimiro",
@@ -461,19 +460,19 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
   const CRIMES = [
     "fraude em sorteio de rifas ao vivo",
     "plágio de meme viral sem dar créditos",
-    "invasão não autorizada ao banco de dados do INSS para verificar a aposentadoria do cachorro",
-    "estelionato emocional ao prometer 'reagir honestamente' a vídeos",
-    "tráfico de spoilers de séries antes do lançamento",
+    "invasão não autorizada ao banco de dados do INSS",
+    "estelionato emocional ao prometer 'reagir honestamente'",
+    "tráfico de spoilers de séries",
     "falsificação de número de inscritos no YouTube",
-    "invasão de domicílio virtual ao entrar em lobby de jogo alheio sem permissão",
-    "contrabando de segredos de cosméticos em vídeos patrocinados enganosos",
-    "crime contra a língua portuguesa ao criar palavras que não existem",
+    "invasão de domicílio virtual",
+    "contrabando de segredos de cosméticos",
+    "crime contra a língua portuguesa",
     "perturbação do sossego público com live de 24 horas",
     "receptação de trend sem criar nada original",
-    "lavagem de créditos de carbono via NFT de meme",
-    "fraude em desafio viral do balde de gelo com água morna",
-    "falsidade ideológica ao fingir ser iniciante em jogo que claramente já zerou",
-    "usurpação de pauta alheia copiando vídeo do concorrente",
+    "lavagem de créditos de carbono via NFT",
+    "fraude em desafio viral do balde de gelo",
+    "falsidade ideológica ao fingir ser iniciante",
+    "usurpação de pauta alheia",
   ];
 
   // ─── ESTADO ─────────────────────────────────────────────────
@@ -498,35 +497,25 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
     document.getElementById("btn-send").disabled = disabled;
   }
 
-  // ─── BARRA DE CONFIANÇA ─────────────────────────────────────
   function updateConfidence(value) {
     state.confidence = Math.max(0, Math.min(100, value));
     const fill = document.getElementById("conf-fill");
     document.getElementById("conf-pct").textContent = state.confidence + "%";
     fill.style.width = state.confidence + "%";
-    fill.className = "confidence-fill" +
-      (state.confidence >= 70 ? " high" : state.confidence < 30 ? " low" : "");
+    fill.className = "confidence-fill" + (state.confidence >= 70 ? " high" : state.confidence < 30 ? " low" : "");
   }
 
-  // ─── CHAT ───────────────────────────────────────────────────
   function appendMsg(role, text) {
     const log = document.getElementById("chat-log");
     const div = document.createElement("div");
-
     if (role === "system") {
       div.className = "msg system";
       div.innerHTML = `<div class="msg-bubble">[SISTEMA] ${escHtml(text)}</div>`;
     } else {
-      const who = role === "lawyer"
-        ? "&#x1F4BB; (VOCÊ)"
-        : "&#x2694; JUIZ IA";
+      const who = role === "lawyer" ? "&#x1F4BB; ADVOGADO (VOCÊ)" : "&#x2694; JUIZ RODRIGUES";
       div.className = `msg ${role}`;
-      div.innerHTML = `
-        <div class="msg-who">${who}</div>
-        <div class="msg-bubble">${escHtml(text)}</div>
-      `;
+      div.innerHTML = `<div class="msg-who">${who}</div><div class="msg-bubble">${escHtml(text)}</div>`;
     }
-
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
@@ -536,14 +525,7 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
     const div = document.createElement("div");
     div.id = "thinking-bubble";
     div.className = "thinking";
-    div.innerHTML = `
-      <div class="thinking-bubble">
-        JUIZ IA PROCESSANDO
-        <div class="dots">
-          <span>.</span><span>.</span><span>.</span>
-        </div>
-      </div>
-    `;
+    div.innerHTML = `<div class="thinking-bubble">JUIZ IA PROCESSANDO<div class="dots"><span>.</span><span>.</span><span>.</span></div></div>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
@@ -554,61 +536,37 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
   }
 
   function escHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
   }
 
-  // ─── INICIAR CASO ────────────────────────────────────────────
+  // ─── LÓGICA DO JOGO ──────────────────────────────────────────
   function startCase() {
-    if (!GEMINI_KEY || GEMINI_KEY === "SUA_CHAVE_AQUI") {
-      alert("Configure sua GEMINI_KEY no topo do arquivo HTML antes de jogar!");
-      return;
-    }
-
     state.defendant = pick(YOUTUBERS);
-    state.crime     = pick(CRIMES);
+    state.crime = pick(CRIMES);
     state.confidence = 50;
-    state.history   = [];
-    state.playing   = true;
+    state.history = [];
+    state.playing = true;
 
-    // Limpa o chat
     document.getElementById("chat-log").innerHTML = "";
     document.getElementById("defense-input").value = "";
-
-    // Atualiza cabeçalho
     document.getElementById("trial-defendant").textContent = "RÉU: " + state.defendant;
-    document.getElementById("trial-crime").textContent     = "CRIME: " + state.crime;
+    document.getElementById("trial-crime").textContent = "CRIME: " + state.crime;
     updateConfidence(50);
 
     show("screen-trial");
-
-    // Descrição do caso
-    const desc = `O réu ${state.defendant} está sendo acusado de ${state.crime}. ` +
-      `O Ministério Público solicita 5 anos de reclusão e a suspensão de todas as redes sociais por 10 anos.`;
-
-    const log = document.getElementById("chat-log");
-    const block = document.createElement("div");
-    block.className = "case-info-block";
-    block.innerHTML = `<div class="log-label">&gt; LOG DO SISTEMA</div>${escHtml(desc)}`;
-    log.appendChild(block);
-
-    // Mensagem de abertura do juiz
-    appendMsg("judge", "SESSÃO INICIADA. O tribunal está em ordem. Doutor(a), a palavra é sua — apresente o primeiro argumento de defesa do réu.");
-
+    appendMsg("judge", `SESSÃO INICIADA. O réu ${state.defendant} é acusado de ${state.crime}. Advogado, apresente sua defesa.`);
     document.getElementById("defense-input").focus();
   }
 
-  // ─── ENVIAR DEFESA ───────────────────────────────────────────
   function handleKey(e) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDefense(); }
   }
 
   async function sendDefense() {
     const input = document.getElementById("defense-input");
-    const text  = input.value.trim();
+    const text = input.value.trim();
     if (!text || !state.playing) return;
 
-    // Adiciona mensagem do advogado
     appendMsg("lawyer", text);
     state.history.push({ role: "lawyer", content: text });
     input.value = "";
@@ -619,113 +577,57 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
       const response = await callGemini(text);
       hideThinking();
 
-      const change     = Math.max(-30, Math.min(30, response.confidenceChange ?? 0));
-      const newConf    = Math.max(0, Math.min(100, state.confidence + change));
-      updateConfidence(newConf);
+      const change = Math.max(-30, Math.min(30, response.confidenceChange ?? 0));
+      updateConfidence(state.confidence + change);
 
-      const judgeMsg = response.nextQuestion
-        ? `${response.reaction}\n\n${response.nextQuestion}`
-        : response.reaction;
-
+      const judgeMsg = response.nextQuestion ? `${response.reaction}\n\n${response.nextQuestion}` : response.reaction;
       appendMsg("judge", judgeMsg);
       state.history.push({ role: "judge", content: judgeMsg });
 
-      // Veredicto
-      if (newConf >= 100) {
-        state.playing = false;
-        setTimeout(() => showVerdict("win"), 600);
-        return;
-      } else if (newConf <= 0) {
-        state.playing = false;
-        setTimeout(() => showVerdict("lose"), 600);
-        return;
-      }
+      if (state.confidence >= 100) { state.playing = false; setTimeout(() => showVerdict("win"), 800); }
+      else if (state.confidence <= 0) { state.playing = false; setTimeout(() => showVerdict("lose"), 800); }
+      else { setInputDisabled(false); document.getElementById("defense-input").focus(); }
 
     } catch (err) {
       hideThinking();
-      appendMsg("system", "Falha na comunicação com o tribunal. Tente novamente.");
-      console.error(err);
+      appendMsg("system", "Erro no tribunal: " + err.message);
+      setInputDisabled(false);
     }
-
-    setInputDisabled(false);
-    input.focus();
   }
 
-// ─── CHAMADA GEMINI ──────────────────────────────────────────
   async function callGemini(defense) {
-    const historyText = state.history.map(m =>
-      `${m.role === "lawyer" ? "ADVOGADO" : "JUIZ"}: ${m.content}`
-    ).join("\n");
-
-    const prompt = `Você é o Juiz Rodrigues, um juiz severo e irônico. 
-Baseie suas reações no conhecimento público sobre o Réu (se for uma celebridade).
-Réu: ${state.defendant}, Crime: ${state.crime}.
-Confiança atual: ${state.confidence}%.
-
-Histórico do tribunal:
-${historyText || "Início do julgamento."}
-
-O advogado disse agora: "${defense}"
-
-REGRAS:
-- Defesa fraca/ridícula: diminua confiança entre -10 e -25
-- Defesa razoável: mude entre -5 e +10
-- Defesa brilhante: aumente entre +10 e +25
-- Seja dramático e BREVE (máximo 2 frases na reaction).
-
-Responda APENAS com um objeto JSON puro:
-{"reaction":"fala do juiz","nextQuestion":"pergunta do juiz","confidenceChange": número}`;
+    const historyText = state.history.map(m => `${m.role === "lawyer" ? "ADV" : "JUIZ"}: ${m.content}`).join("\n");
+    const prompt = `Você é o Juiz Rodrigues, irônico e severo. Réu: ${state.defendant}. Crime: ${state.crime}. Confiança: ${state.confidence}%. Histórico: ${historyText}. Advogado disse: "${defense}". Responda APENAS JSON: {"reaction":"fala curta","nextQuestion":"pergunta","confidenceChange":número}`;
 
     const res = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.8,
-          responseMimeType: "application/json",
-        },
-      }),
+        generationConfig: { temperature: 0.8, responseMimeType: "application/json" }
+      })
     });
 
-    if (!res.ok) throw new Error(`Erro na API: ${res.status}`);
-
+    if (!res.ok) throw new Error("Falha na API");
     const data = await res.json();
-    let raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    
-    return JSON.parse(raw);
+    return JSON.parse(data.candidates[0].content.parts[0].text);
   }
-  // ─── VEREDICTO ───────────────────────────────────────────────
+
   function showVerdict(result) {
-    const title  = document.getElementById("verdict-title");
-    const desc   = document.getElementById("verdict-desc");
-    const prize  = document.getElementById("verdict-prize-area");
-    const box    = document.getElementById("verdict-box");
-
+    const title = document.getElementById("verdict-title");
+    const desc = document.getElementById("verdict-desc");
+    const prize = document.getElementById("verdict-prize-area");
     if (result === "win") {
-      title.textContent   = "VITÓRIA";
-      title.className     = "verdict-title win";
-      desc.textContent    = "O juiz foi convencido! Seu cliente é inocentado e você recebe:";
-      prize.innerHTML     = `<div class="verdict-prize">R$ 2.000,00</div>`;
-      box.style.borderColor = "var(--neon)";
-      box.style.boxShadow   = "0 0 30px rgba(57,255,20,0.5)";
+      title.textContent = "VITÓRIA"; title.className = "verdict-title win";
+      desc.textContent = "Seu cliente foi inocentado!"; prize.innerHTML = `<div class="verdict-prize">R$ 2.000,00</div>`;
     } else {
-      title.textContent   = "DERROTA";
-      title.className     = "verdict-title lose";
-      desc.textContent    = "O juiz perdeu a paciência. Você foi preso por desacato ao tribunal!";
-      prize.innerHTML     = `<div class="verdict-prison">&#x1F6A8; PRESO &#x1F6A8;</div>`;
-      box.style.borderColor = "var(--red)";
-      box.style.boxShadow   = "0 0 30px rgba(255,32,32,0.5)";
+      title.textContent = "DERROTA"; title.className = "verdict-title lose";
+      desc.textContent = "Você foi preso por desacato!"; prize.innerHTML = `<div class="verdict-prison">🚨 PRESO 🚨</div>`;
     }
-
     show("screen-verdict");
   }
 
-  // ─── REINICIAR ───────────────────────────────────────────────
-  function restart() {
-    state.playing = false;
-    show("screen-menu");
-  }
+  function restart() { show("screen-menu"); }
 </script>
 </body>
 </html>
