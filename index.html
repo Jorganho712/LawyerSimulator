@@ -598,18 +598,29 @@ const GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1
 
   async function callGemini(defense) {
     const historyText = state.history.map(m => `${m.role === "lawyer" ? "ADV" : "JUIZ"}: ${m.content}`).join("\n");
-    const prompt = `Você é o Juiz Rodrigues, irônico e severo. Réu: ${state.defendant}. Crime: ${state.crime}. Confiança: ${state.confidence}%. Histórico: ${historyText}. Advogado disse: "${defense}". Responda APENAS JSON: {"reaction":"fala curta","nextQuestion":"pergunta","confidenceChange":número}`;
+    const prompt = `Você é o Juiz Rodrigues, irônico e severo. Você deve fazer o veredito com base na wikipedia do réu (Ex: se falarem que o Elon Musk é pobre você sabe que é mentira com base
+    na wikipedia)
+    Réu: ${state.defendant}. Crime: ${state.crime}. Confiança: ${state.confidence}%. Histórico: ${historyText}. Advogado disse: "${defense}". Responda APENAS JSON: {"reaction":"fala curta","nextQuestion":"pergunta","confidenceChange":número}`;
 
-    const res = await fetch(GEMINI_URL, {
+    // Adicionamos a chave aqui no final da URL para evitar erro 404
+    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.8, responseMimeType: "application/json" }
+        generationConfig: { 
+            temperature: 0.8, 
+            responseMimeType: "application/json" 
+        }
       })
     });
 
-    if (!res.ok) throw new Error("Falha na API");
+    if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Erro detalhado:", errorData);
+        throw new Error(`Erro ${res.status}: ${errorData.error?.message || "Falha na API"}`);
+    }
+    
     const data = await res.json();
     return JSON.parse(data.candidates[0].content.parts[0].text);
   }
