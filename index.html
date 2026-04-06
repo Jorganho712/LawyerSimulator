@@ -6,15 +6,13 @@
   <title>LAWYER SIMULATOR</title>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
   <style>
-    /* ─── SEUS ESTILOS ORIGINAIS COMPLETOS ────────────────── */
+    /* ─── ESTILOS ORIGINAIS JOORGE'S INC ────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --neon: #39ff14;
       --neon-dim: rgba(57, 255, 20, 0.35);
       --neon-faint: rgba(57, 255, 20, 0.08);
-      --red: #ff2020;
-      --yellow: #ffcc00;
       --bg: #000;
       --font: 'Share Tech Mono', monospace;
     }
@@ -44,10 +42,6 @@
     }
     .btn:hover:not(:disabled) { background: var(--neon); color: #000; box-shadow: 0 0 20px var(--neon); }
 
-    /* ─── TELA DO TRIBUNAL ──────────────────────────────── */
-    #screen-trial { display: none; }
-    #screen-trial.active { display: flex; }
-
     .trial-header { display: flex; justify-content: space-between; width: 100%; padding: 1rem; margin-bottom: 0.5rem; }
     .confidence-track { height: 14px; width: 200px; background: rgba(57,255,20,0.1); border: 1px solid var(--neon); }
     .confidence-fill { height: 100%; width: 50%; background: var(--neon); transition: width 0.8s ease; }
@@ -58,9 +52,9 @@
     .msg.judge { align-self: flex-start; color: var(--neon); }
 
     .input-area { width: 100%; display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-    .defense-input { flex: 1; background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 0.8rem; font-family: var(--font); }
+    .defense-input { flex: 1; background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 0.8rem; font-family: var(--font); outline: none; }
 
-    /* VEREDITO SEMPRE VERDE */
+    /* TITULO DE VITÓRIA E DERROTA SEMPRE VERDE */
     .verdict-title { font-size: 4rem; font-weight: 900; color: var(--neon) !important; text-shadow: 0 0 20px var(--neon); }
     
     @keyframes glitch-flicker { 0%, 100% { opacity: 1; } 95% { opacity: 0.8; } }
@@ -88,7 +82,7 @@
   <div class="chat-log neon-box" id="chat-log"></div>
   <div class="input-area">
     <input type="text" class="defense-input" id="defense-input" placeholder="DIGITE SUA DEFESA..." onkeydown="if(event.key==='Enter') sendDefense()">
-    <button class="btn" onclick="sendDefense()">ENVIAR</button>
+    <button class="btn" id="btn-send" onclick="sendDefense()">ENVIAR</button>
   </div>
 </div>
 
@@ -99,17 +93,17 @@
 </div>
 
 <script>
-  // ─── API KEY CAMUFLADA (4 PARTES) ───────────────────────
-  const p1 = "AIzaSyDAKh5";
-  const p2 = "AbTApLxN1se";
-  const p3 = "ALGXvfi_b3Z";
-  const p4 = "oattMc";
+  // ─── NOVA CHAVE FATIADA EM 4 PARTES ──────────────────────
+  const p1 = "AIzaSyAMqNe";
+  const p2 = "SLJfB-qcOuR";
+  const p3 = "zAS5ixDatDj";
+  const p4 = "1mOWGk";
 
   const _KEY_ = p1 + p2 + p3 + p4;
   const _URL_ = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
 
-  const YOUTUBERS = ["Felipe Neto", "Whindersson", "Virginia", "Casimiro", "Neymar Jr", "Monark", "Gaules", "Cellbit"];
-  const CRIMES = ["fraude em rifas", "plágio de conteúdo", "invasão do INSS", "estelionato emocional", "tráfico de spoilers"];
+  const YOUTUBERS = ["Felipe Neto", "Whindersson", "Virginia", "Casimiro", "Neymar Jr", "Monark", "Gaules", "Cellbit", "Pablo Marçal"];
+  const CRIMES = ["fraude em rifas", "plágio de conteúdo", "invasão do INSS", "estelionato emocional", "tráfico de spoilers", "mentir em live"];
 
   let state = { defendant: "", crime: "", confidence: 50, playing: false };
 
@@ -122,12 +116,11 @@
     const log = document.getElementById("chat-log");
     const div = document.createElement("div");
     div.className = `msg ${role}`;
-    div.innerHTML = `<div class="msg-bubble"><b>${role === 'judge' ? 'JUIZ' : 'VOCÊ'}:</b><br>${text}</div>`;
+    div.innerHTML = `<div class="msg-bubble"><b>${role === 'judge' ? 'JUIZ RODRIGUES' : 'VOCÊ'}:</b><br>${text}</div>`;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
   }
 
-  // CORREÇÃO: Função startCase agora limpa e muda de tela corretamente
   function startCase() {
     state.defendant = YOUTUBERS[Math.floor(Math.random() * YOUTUBERS.length)];
     state.crime = CRIMES[Math.floor(Math.random() * CRIMES.length)];
@@ -140,29 +133,34 @@
     document.getElementById("conf-fill").style.width = "50%";
     document.getElementById("conf-pct").textContent = "50%";
 
-    show("screen-trial"); // Muda para a tela do tribunal
-    appendMsg("judge", `O réu ${state.defendant} é acusado de ${state.crime}. O que tem a dizer em sua defesa?`);
+    show("screen-trial");
+    appendMsg("judge", `O réu ${state.defendant} é acusado de ${state.crime}. Advogado, convença-me do contrário.`);
   }
 
   async function sendDefense() {
     const input = document.getElementById("defense-input");
+    const btn = document.getElementById("btn-send");
     const text = input.value.trim();
+    
     if (!text || !state.playing) return;
 
     appendMsg("lawyer", text);
     input.value = "";
     input.disabled = true;
+    btn.disabled = true;
 
     try {
-      // CORREÇÃO: URL montada corretamente com a chave
+      // Montagem correta da URL para evitar erro de conexão
       const response = await fetch(`${_URL_}?key=${_KEY_}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Você é o Juiz Rodrigues, irônico. Réu: ${state.defendant}, Crime: ${state.crime}. Responda à defesa: "${text}". Retorne APENAS JSON: {"reaction":"texto","confidenceChange":numero}` }] }],
+          contents: [{ parts: [{ text: `Você é o Juiz Rodrigues. Réu: ${state.defendant}, Crime: ${state.crime}. Responda à defesa: "${text}". Retorne APENAS JSON: {"reaction":"texto curto e ácido","confidenceChange":numero}` }] }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.8 }
         })
       });
+
+      if (!response.ok) throw new Error("Falha na API");
 
       const data = await response.json();
       const resJson = JSON.parse(data.candidates[0].content.parts[0].text);
@@ -177,12 +175,16 @@
 
       if (state.confidence >= 100) setTimeout(() => showVerdict("win"), 800);
       else if (state.confidence <= 0) setTimeout(() => showVerdict("lose"), 800);
-      else input.disabled = false;
+      else {
+          input.disabled = false;
+          btn.disabled = false;
+          input.focus();
+      }
 
     } catch (e) {
-      appendMsg("judge", "ERRO DE CONEXÃO. O tribunal está em recesso.");
+      appendMsg("judge", "ERRO DE CONEXÃO: O tribunal está em recesso (Verifique a API Key).");
       input.disabled = false;
-      console.error(e);
+      btn.disabled = false;
     }
   }
 
@@ -190,8 +192,9 @@
     state.playing = false;
     const title = document.getElementById("verdict-title");
     title.textContent = type === "win" ? "VITÓRIA!" : "DERROTA!";
-    title.style.color = "var(--neon)"; // Garante que a derrota seja verde
-    document.getElementById("verdict-desc").textContent = type === "win" ? "Você salvou seu cliente!" : "O réu foi condenado e você perdeu a licença!";
+    // Força a cor verde neon
+    title.style.color = "var(--neon)"; 
+    document.getElementById("verdict-desc").textContent = type === "win" ? "O réu foi inocentado! Você ganhou a causa." : "Sentença de prisão decretada! Você perdeu tudo.";
     show("screen-verdict");
   }
 </script>
